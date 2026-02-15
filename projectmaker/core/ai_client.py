@@ -1,17 +1,25 @@
 """Claude API wrapper with retry logic."""
 
+import os
 import time
 
 import anthropic
 
-MODEL = "claude-sonnet-4-5-20250929"
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
 MAX_RETRIES = 3
 BASE_DELAY = 1.0
 
 
 def create_client() -> anthropic.Anthropic:
     """Create Anthropic client (uses ANTHROPIC_API_KEY env var)."""
-    return anthropic.Anthropic()
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY environment variable is not set.\n"
+            "Get your API key from https://console.anthropic.com/\n"
+            "Then run: export ANTHROPIC_API_KEY='your-api-key-here'"
+        )
+    return anthropic.Anthropic(api_key=api_key)
 
 
 def call_claude(prompt: str, system: str = "", client: anthropic.Anthropic | None = None) -> str:
@@ -29,8 +37,34 @@ def call_claude(prompt: str, system: str = "", client: anthropic.Anthropic | Non
                 kwargs["system"] = system
             response = client.messages.create(**kwargs)
             return response.content[0].text
-        except (anthropic.APIConnectionError, anthropic.RateLimitError, anthropic.APIStatusError) as e:
-            last_error = e
+        except anthropic.AuthenticationError as e:
+            raise RuntimeError(
+                "Authentication failed. Please check your ANTHROPIC_API_KEY.\n"
+                f"Error: {e}"
+            )
+        except anthropic.PermissionDeniedError as e:
+            raise RuntimeError(
+                "Permission denied. Your API key may not have access to the requested model.\n"
+                f"Error: {e}"
+            )
+        except anthropic.NotFoundError as e:
+            raise RuntimeError(
+                f"Model '{MODEL}' not found. The model may not exist or may be deprecated.\n"
+                "Try setting ANTHROPIC_MODEL environment variable to a valid model.\n"
+                f"Error: {e}"
+            )
+        except anthropic.RateLimitError as e:
+            last_error = f"Rate limit exceeded: {e}"
+            if attempt < MAX_RETRIES:
+                delay = BASE_DELAY * (2 ** (attempt - 1))
+                time.sleep(delay)
+        except anthropic.APIConnectionError as e:
+            last_error = f"Network connection error: {e}"
+            if attempt < MAX_RETRIES:
+                delay = BASE_DELAY * (2 ** (attempt - 1))
+                time.sleep(delay)
+        except anthropic.APIStatusError as e:
+            last_error = f"API error (status {e.status_code}): {e}"
             if attempt < MAX_RETRIES:
                 delay = BASE_DELAY * (2 ** (attempt - 1))
                 time.sleep(delay)

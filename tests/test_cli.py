@@ -30,6 +30,20 @@ def test_init(runner, project_dir):
     assert proj["name"] == "my-app"
 
 
+def test_init_empty_name(runner, project_dir):
+    """Test that empty project name is rejected."""
+    result = runner.invoke(cli, ["init", ""])
+    assert result.exit_code != 0
+    assert "cannot be empty" in result.output
+
+
+def test_init_invalid_characters(runner, project_dir):
+    """Test that invalid characters in project name are rejected."""
+    result = runner.invoke(cli, ["init", "my/project"])
+    assert result.exit_code != 0
+    assert "invalid characters" in result.output
+
+
 def test_init_already_exists(runner, project_dir):
     runner.invoke(cli, ["init", "my-app"])
     result = runner.invoke(cli, ["init", "my-app"])
