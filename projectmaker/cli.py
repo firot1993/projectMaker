@@ -26,8 +26,10 @@ def init(name):
     
     # Check for invalid characters that could cause filesystem issues
     invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0']
-    if any(char in name for char in invalid_chars):
-        console.print(f"[red]Error:[/red] Project name contains invalid characters: {invalid_chars}")
+    found_invalid = [char for char in invalid_chars if char in name]
+    if found_invalid:
+        console.print(f"[red]Error:[/red] Project name contains invalid characters: {found_invalid}")
+        console.print("[dim]Avoid using: / \\ : * ? \" < > |[/dim]")
         raise SystemExit(1)
     
     path = project.get_project_path()

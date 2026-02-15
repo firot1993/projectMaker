@@ -26,12 +26,17 @@ def test_create_client_with_api_key():
 
 def test_model_from_env():
     """Test that model can be overridden via environment variable."""
-    with patch.dict(os.environ, {"ANTHROPIC_MODEL": "claude-3-opus-20240229"}):
-        # Re-import to pick up the env var
-        import importlib
-        importlib.reload(ai_client)
-        assert ai_client.MODEL == "claude-3-opus-20240229"
+    # Save original MODEL value
+    original_model = ai_client.MODEL
     
-    # Reload again to restore default
-    import importlib
-    importlib.reload(ai_client)
+    try:
+        with patch.dict(os.environ, {"ANTHROPIC_MODEL": "claude-3-opus-20240229"}):
+            # Re-import to pick up the env var
+            import importlib
+            importlib.reload(ai_client)
+            assert ai_client.MODEL == "claude-3-opus-20240229"
+    finally:
+        # Restore original MODEL value and reload
+        with patch.dict(os.environ, {"ANTHROPIC_MODEL": original_model}):
+            import importlib
+            importlib.reload(ai_client)
