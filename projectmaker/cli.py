@@ -19,6 +19,17 @@ def cli():
 @click.argument("name")
 def init(name):
     """Initialize a new project."""
+    # Validate project name
+    if not name or not name.strip():
+        console.print("[red]Error:[/red] Project name cannot be empty.")
+        raise SystemExit(1)
+    
+    # Check for invalid characters that could cause filesystem issues
+    invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0']
+    if any(char in name for char in invalid_chars):
+        console.print(f"[red]Error:[/red] Project name contains invalid characters: {invalid_chars}")
+        raise SystemExit(1)
+    
     path = project.get_project_path()
     if path.exists():
         console.print(f"[red]Error:[/red] project.json already exists in this directory.")
